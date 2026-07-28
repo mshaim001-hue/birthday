@@ -6,7 +6,12 @@ const EVENT_DAYS = "1 августа - 2 августа 2026";
 const EVENT_PLACE = "Боровое";
 const BIRTHDAY_PERSON = "Максат";
 const BIRTHDAY_AGE = 43;
-const DEFAULT_HOUSE_IMAGES = ["/images/house-1.jpg", "/images/house-2.jpg"];
+const DEFAULT_HOUSE_IMAGES = [
+  "/images/house-1.png",
+  "/images/house-2.png",
+  "/images/house-3.png",
+  "/images/house-4.png"
+];
 const RSVP_DEADLINE = "2026-07-29T13:00:00+05:00";
 
 function createToken() {
@@ -42,7 +47,6 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [invite, setInvite] = useState(null);
   const [heroImages, setHeroImages] = useState(DEFAULT_HOUSE_IMAGES);
-  const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
     async function loadEventContent() {
@@ -201,17 +205,11 @@ export default function App() {
           </article>
         </div>
 
-        <img
-          className="hero-image"
-          src={heroImages[activeImage]}
-          alt="Домик в Боровом"
-          onError={() => {
-            if (activeImage < heroImages.length - 1) {
-              setActiveImage((prev) => prev + 1);
-            }
-          }}
-        />
-        {heroImages[1] ? <img className="hero-image secondary" src={heroImages[1]} alt="Еще фото домика" /> : null}
+        <div className="gallery">
+          {heroImages.map((imageSrc, index) => (
+            <img key={imageSrc} className="hero-image" src={imageSrc} alt={`Фото домика ${index + 1}`} />
+          ))}
+        </div>
 
         <p className="meta">Будет тепло, душевно и весело: шашлыки, озеро, разговоры и отдых 😎</p>
 

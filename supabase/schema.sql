@@ -31,7 +31,7 @@ create table if not exists public.event_content (
 insert into public.event_content (id, hero_images, place_description)
 values (
   1,
-  array['/images/house-1.jpg', '/images/house-2.jpg'],
+  array['/images/house-1.png', '/images/house-2.png', '/images/house-3.png', '/images/house-4.png'],
   'Уютный домик у озера'
 )
 on conflict (id) do update
