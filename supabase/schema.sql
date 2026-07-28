@@ -21,8 +21,28 @@ alter table public.responses add column if not exists auto_declined boolean not 
 
 create unique index if not exists responses_invite_id_unique on public.responses(invite_id);
 
+create table if not exists public.event_content (
+  id int primary key,
+  hero_images text[] not null default '{}',
+  place_description text not null default 'Уютный домик у озера',
+  updated_at timestamptz not null default now()
+);
+
+insert into public.event_content (id, hero_images, place_description)
+values (
+  1,
+  array['/images/house-1.jpg', '/images/house-2.jpg'],
+  'Уютный домик у озера'
+)
+on conflict (id) do update
+set
+  hero_images = excluded.hero_images,
+  place_description = excluded.place_description,
+  updated_at = now();
+
 alter table public.invites enable row level security;
 alter table public.responses enable row level security;
+alter table public.event_content enable row level security;
 
 drop policy if exists "public can read own invite by token" on public.invites;
 create policy "public can read own invite by token"
@@ -59,3 +79,10 @@ create policy "public can insert response"
   for insert
   to anon
   with check (true);
+
+drop policy if exists "public can read event content" on public.event_content;
+create policy "public can read event content"
+  on public.event_content
+  for select
+  to anon
+  using (true);

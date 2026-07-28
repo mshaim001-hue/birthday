@@ -6,7 +6,8 @@ const EVENT_DAYS = "1 августа - 2 августа 2026";
 const EVENT_PLACE = "Боровое";
 const BIRTHDAY_PERSON = "Максат";
 const BIRTHDAY_AGE = 43;
-const INVITE_LIFETIME_HOURS = 15;
+const DEFAULT_HOUSE_IMAGES = ["/images/house-1.jpg", "/images/house-2.jpg"];
+const RSVP_DEADLINE = "2026-07-29T13:00:00+05:00";
 
 function createToken() {
   return crypto.randomUUID();
@@ -40,11 +41,26 @@ export default function App() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [invite, setInvite] = useState(null);
+  const [heroImages, setHeroImages] = useState(DEFAULT_HOUSE_IMAGES);
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    async function loadEventContent() {
+      const { data, error: contentError } = await supabase
+        .from("event_content")
+        .select("hero_images")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (contentError || !data?.hero_images?.length) return;
+      setHeroImages(data.hero_images);
+    }
+
+    loadEventContent();
+  }, []);
 
   useEffect(() => {
     async function loadInvite() {
-      const nowIso = new Date().toISOString();
-
       const { data, error: inviteError } = await supabase
         .from("invites")
         .select("id, token, first_opened_at, expires_at")
@@ -60,13 +76,10 @@ export default function App() {
       let activeInvite = data;
 
       if (!activeInvite) {
-        const expiresAt = new Date(Date.now() + INVITE_LIFETIME_HOURS * 60 * 60 * 1000).toISOString();
         const { data: createdInvite, error: createError } = await supabase
           .from("invites")
           .insert({
-            token: inviteToken,
-            first_opened_at: nowIso,
-            expires_at: expiresAt
+            token: inviteToken
           })
           .select("id, token, first_opened_at, expires_at")
           .single();
@@ -77,26 +90,6 @@ export default function App() {
           return;
         }
         activeInvite = createdInvite;
-      }
-
-      if (!activeInvite.first_opened_at) {
-        const expiresAt = new Date(Date.now() + INVITE_LIFETIME_HOURS * 60 * 60 * 1000).toISOString();
-        const { data: updatedInvite, error: updateError } = await supabase
-          .from("invites")
-          .update({
-            first_opened_at: nowIso,
-            expires_at: expiresAt
-          })
-          .eq("id", activeInvite.id)
-          .select("id, token, first_opened_at, expires_at")
-          .single();
-
-        if (updateError) {
-          setError("Не удалось активировать приглашение. Попробуйте позже.");
-          setLoading(false);
-          return;
-        }
-        activeInvite = updatedInvite;
       }
 
       const { data: existingResponse, error: responseError } = await supabase
@@ -121,7 +114,7 @@ export default function App() {
         return;
       }
 
-      if (new Date(activeInvite.expires_at).getTime() < Date.now()) {
+      if (Date.now() > new Date(RSVP_DEADLINE).getTime()) {
         const { error: autoDeclineError } = await supabase.from("responses").insert({
           invite_id: activeInvite.id,
           guest_name: "Не ответил",
@@ -130,7 +123,7 @@ export default function App() {
         });
 
         if (autoDeclineError) {
-          setError("Срок действия приглашения истек.");
+          setError("Дедлайн ответа уже прошел.");
           setLoading(false);
           return;
         }
@@ -149,9 +142,8 @@ export default function App() {
   }, [inviteToken]);
 
   const expiresLabel = useMemo(() => {
-    if (!invite?.expires_at) return "";
-    return formatDateTime(invite.expires_at);
-  }, [invite]);
+    return `${formatDateTime(RSVP_DEADLINE)} (Астана)`;
+  }, []);
 
   async function submitAnswer(attending) {
     const trimmedName = name.trim();
@@ -160,6 +152,10 @@ export default function App() {
       return;
     }
     if (!invite) return;
+    if (Date.now() > new Date(RSVP_DEADLINE).getTime()) {
+      setError("Уже поздно ответить: дедлайн 29 июля 2026, 13:00 по Астане.");
+      return;
+    }
 
     setError("");
     setSubmitting(true);
@@ -184,35 +180,40 @@ export default function App() {
   return (
     <main className="page">
       <section className="card">
-        <p className="eyebrow">Приглашение</p>
-        <h1>День рождения {BIRTHDAY_PERSON}</h1>
+        <p className="eyebrow">ПРИГЛАШЕНИЕ 🎉</p>
+        <h1>День рождения {BIRTHDAY_PERSON} 🥳</h1>
         <p className="lead">
-          {BIRTHDAY_PERSON} исполняется {BIRTHDAY_AGE} года. Будем рады провести выходные вместе.
+          Вашему другу исполняется {BIRTHDAY_AGE} года. Он будет очень рад провести выходные вместе.
         </p>
-        <p className="lead">Пожалуйста, подтвердите участие в течение 15 часов после первого открытия ссылки.</p>
+        <p className="lead">
+          Пожалуйста, подтвердите участие в течение 20 часов после первого открытия ссылки.
+        </p>
+        <p className="deadline">Ответы принимаются до {expiresLabel}. После этого ответить уже нельзя ⛔</p>
 
         <div className="info-grid">
           <article className="info-item">
-            <h2>Когда</h2>
+            <h2>📅 Когда</h2>
             <p>{EVENT_DAYS}</p>
           </article>
           <article className="info-item">
-            <h2>Где</h2>
+            <h2>📍 Где</h2>
             <p>{EVENT_PLACE}, уютный домик у озера</p>
           </article>
         </div>
 
         <img
           className="hero-image"
-          src="https://cf.bstatic.com/xdata/images/hotel/max1024x768/417198523.jpg?k=1f2ac69d9d9e2de0f181db3b6a55dd54d57f038b040f2ddc89c6b8e89bc0f6b5&o="
+          src={heroImages[activeImage]}
           alt="Домик в Боровом"
+          onError={() => {
+            if (activeImage < heroImages.length - 1) {
+              setActiveImage((prev) => prev + 1);
+            }
+          }}
         />
+        {heroImages[1] ? <img className="hero-image secondary" src={heroImages[1]} alt="Еще фото домика" /> : null}
 
-        {invite && (
-          <p className="meta">
-            Приглашение действует до <strong>{expiresLabel}</strong>.
-          </p>
-        )}
+        <p className="meta">Будет тепло, душевно и весело: шашлыки, озеро, разговоры и отдых 😎</p>
 
         {loading ? <p className="status">Загрузка приглашения...</p> : null}
         {error ? <p className="status status-error">{error}</p> : null}
@@ -248,7 +249,7 @@ export default function App() {
 
         {result === "yes" && (
           <div className="result success">
-            <h3>Отлично, ждем вас!</h3>
+            <h3>Супер, ждем тебя! 🎈</h3>
             <p>Присоединяйтесь в Telegram-группу, там будет вся организационная информация.</p>
             <a href={TELEGRAM_GROUP_LINK} target="_blank" rel="noreferrer">
               Перейти в Telegram-группу
@@ -258,15 +259,15 @@ export default function App() {
 
         {result === "no" && (
           <div className="result">
-            <h3>Спасибо за ответ</h3>
+            <h3>Спасибо за ответ 🤝</h3>
             <p>Жаль, что не получится. Отказ зафиксирован.</p>
           </div>
         )}
 
         {result === "auto-no" && (
           <div className="result">
-            <h3>Время ответа истекло</h3>
-            <p>Прошло более 15 часов с первого открытия, поэтому приглашение автоматически отмечено как отказ.</p>
+            <h3>Время ответа истекло ⏰</h3>
+            <p>Дедлайн ответа прошел, приглашение автоматически отмечено как отказ.</p>
           </div>
         )}
       </section>
