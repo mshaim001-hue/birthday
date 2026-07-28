@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 
-const TELEGRAM_GROUP_LINK = "https://t.me/+lR0vxQNzFjBjZmFi";
+const TELEGRAM_GROUP_LINK = "https://t.me/+wTcxF76MN6k4OThi";
 const EVENT_DAYS = "1 августа - 2 августа 2026";
 const EVENT_PLACE = "Боровое";
 const BIRTHDAY_PERSON = "Максат";
